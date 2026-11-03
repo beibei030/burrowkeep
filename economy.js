@@ -1,4 +1,5 @@
 export const MAX_LEVEL = 8;
+export const GEAR_CAP = 32;
 export const FOOD_COST = 8;
 export const BASE_HASHES_PER_ORE = 400000;
 export const FRIEND_RATE = 0.05;
@@ -13,14 +14,22 @@ export function hashesPerOre(hamsterLevel, hungry, ease = 1) {
 }
 
 export function threadsFor(gearLevel, cores) {
-  return Math.max(1, Math.min(gearLevel, cores || 1, MAX_LEVEL));
+  return Math.max(1, Math.min(gearLevel, cores || 1, GEAR_CAP));
+}
+
+export function capFor(kind) {
+  return kind === "gear" ? GEAR_CAP : MAX_LEVEL;
 }
 
 export function upgradeCost(kind, level) {
-  const ore = kind === "hamster" ? [100, 300, 800] : [150, 400, 1000];
-  const silver = kind === "hamster" ? [5, 15, 40, 100] : [8, 20, 50, 120];
-  if (level <= 3) return { sand: "ore", amount: ore[level - 1] };
-  return { sand: "silver", amount: silver[level - 4] };
+  if (kind === "hamster") {
+    if (level <= 2) return { sand: "ore", amount: [200, 800][level - 1] };
+    if (level <= 5) return { sand: "silver", amount: [8, 25, 70][level - 3] };
+    return { sand: "gold", amount: [4, 12][level - 6] };
+  }
+  if (level <= 3) return { sand: "ore", amount: [200, 500, 1200][level - 1] };
+  if (level <= 8) return { sand: "silver", amount: [6, 12, 24, 48, 80][level - 4] };
+  return { sand: "gold", amount: 1 + Math.floor((level - 9) / 3) };
 }
 
 export function mintOre(bankedHashes, hamsterLevel, hungry, ease = 1) {
@@ -52,9 +61,9 @@ export function feed(state) {
 
 export function upgrade(state, kind) {
   const level = state[kind];
-  if (level >= MAX_LEVEL) return null;
+  if (level >= capFor(kind)) return null;
   const price = upgradeCost(kind, level);
-  const have = price.sand === "ore" ? state.ore : (state.silver || 0);
+  const have = state[price.sand] || 0;
   if (have < price.amount) return null;
   return { ...state, [price.sand]: have - price.amount, [kind]: level + 1 };
 }

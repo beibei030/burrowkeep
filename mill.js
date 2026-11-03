@@ -7,6 +7,7 @@ import {
   buyItem,
   exchange,
   feed,
+  GEAR_CAP,
   hashesPerOre,
   MAX_DECOR_LEVEL,
   mintOre,
@@ -19,7 +20,7 @@ import {
 } from "./economy.js";
 
 const API = /(?:^|\.)imd\.site$|identitymd\.eth\.limo$/.test(location.hostname)
-  ? "https://aiqiang888.com/burrowkeep-api"
+  ? "https://burrowkeep-api.46.250.250.111.sslip.io"
   : "";
 const KEY = "burrowkeep-cpu-v1";
 const $ = (id) => document.getElementById(id);
@@ -45,6 +46,7 @@ const COPY = {
     maxed: "已经满级",
     need: (n) => `还差 ${n} 矿砂`,
     needSilver: (n) => `还差 ${n} 银砂`,
+    needGold: (n) => `还差 ${n} 金砂`,
     hungry: "饿着的时候，同样的哈希只能换一半矿砂。",
     rate: (kh) => `真实算力 ${kh} kH/s · SHA-256`,
     idle: "挖矿没开。没有在做哈希运算。",
@@ -108,6 +110,7 @@ const COPY = {
     maxed: "Maxed",
     need: (n) => `Need ${n} more ore`,
     needSilver: (n) => `Need ${n} more silver`,
+    needGold: (n) => `Need ${n} more gold`,
     hungry: "While hungry, the same hashes make half as much ore.",
     rate: (kh) => `Real hashrate ${kh} kH/s · SHA-256`,
     idle: "Mining is off. No hashing is running.",
@@ -206,8 +209,9 @@ function load() {
     const parsed = JSON.parse(localStorage.getItem(KEY) || "null");
     if (!parsed || (parsed.version !== 1 && parsed.version !== 2) || !/^[a-z0-9]{8,32}$/i.test(parsed.minerId || "")) return fresh();
     for (const key of ["ore", "satiety", "hamster", "gear"]) {
-      if (!Number.isInteger(parsed[key]) || parsed[key] < 0 || parsed[key] > MAX_LEVEL && key !== "ore") return fresh();
+      if (!Number.isInteger(parsed[key]) || parsed[key] < 0) return fresh();
     }
+    if (parsed.satiety > MAX_LEVEL || parsed.hamster > MAX_LEVEL || parsed.gear > GEAR_CAP) return fresh();
     parsed.iron = Number.isInteger(parsed.iron) ? parsed.iron : 0;
     parsed.silver = Number.isInteger(parsed.silver) ? parsed.silver : 0;
     parsed.gold = Number.isInteger(parsed.gold) ? parsed.gold : 0;
@@ -308,16 +312,19 @@ function hashrate(windowRows) {
 
 function priceText(price) {
   const t = text();
-  return price.sand === "ore" ? `${price.amount} ${t.ore}` : `${price.amount} ${t.sandSilver}`;
+  const name = { ore: t.ore, silver: t.sandSilver, gold: t.sandGold }[price.sand];
+  return `${price.amount} ${name}`;
 }
 
-function noteForPrice(price, level) {
+function noteForPrice(price, level, cap = MAX_LEVEL) {
   const t = text();
-  if (level >= MAX_LEVEL) return t.maxed;
-  const have = price.sand === "ore" ? state.ore : (state.silver || 0);
+  if (level >= cap) return t.maxed;
+  const have = state[price.sand] || 0;
   if (have < price.amount) {
     const short = price.amount - have;
-    return price.sand === "ore" ? t.need(short) : t.needSilver(short);
+    if (price.sand === "silver") return t.needSilver(short);
+    if (price.sand === "gold") return t.needGold(short);
+    return t.need(short);
   }
   return "";
 }
@@ -359,19 +366,19 @@ function renderShop() {
   root.className = shopTab === "home" ? "shop home-shop" : "shop";
   if (shopTab === "raise") {
     const hamsterPrice = state.hamster < MAX_LEVEL ? upgradeCost("hamster", state.hamster) : null;
-    const gearPrice = state.gear < MAX_LEVEL ? upgradeCost("gear", state.gear) : null;
+    const gearPrice = state.gear < GEAR_CAP ? upgradeCost("gear", state.gear) : null;
     const items = [
       { name: t.feed, hint: t.feedHint, block: noteForPrice({ sand: "ore", amount: FOOD_COST }, state.satiety), run: () => feed(state) },
       {
         name: t.grow,
         hint: hamsterPrice ? t.growHint(priceText(hamsterPrice), hashesPerOre(state.hamster, false), hashesPerOre(Math.min(MAX_LEVEL, state.hamster + 1), false)) : t.maxed,
-        block: hamsterPrice ? noteForPrice(hamsterPrice, state.hamster) : t.maxed,
+        block: hamsterPrice ? noteForPrice(hamsterPrice, state.hamster, MAX_LEVEL) : t.maxed,
         run: () => upgrade(state, "hamster"),
       },
       {
         name: t.tighten,
         hint: gearPrice ? t.tightenHint(priceText(gearPrice), threadsFor(state.gear + 1, cores())) : t.maxed,
-        block: gearPrice ? noteForPrice(gearPrice, state.gear) : t.maxed,
+        block: gearPrice ? noteForPrice(gearPrice, state.gear, GEAR_CAP) : t.maxed,
         run: () => upgrade(state, "gear"),
       },
       {
@@ -480,7 +487,7 @@ function renderMeters() {
   for (const [name, value, filled] of [
     [t.satiety, `${state.satiety}/${MAX_LEVEL}`, state.satiety],
     [t.hamster, t.level(state.hamster), state.hamster],
-    [t.gear, t.level(state.gear), state.gear],
+    [t.gear, `${t.level(state.gear)} · ${threadsFor(state.gear, cores())}`, Math.ceil(state.gear / GEAR_CAP * MAX_LEVEL)],
   ]) {
     const block = document.createElement("div");
     block.className = "meter";

@@ -114,7 +114,7 @@ const server = createServer(async (request, response) => {
       }
       const now = Date.now();
       const elapsed = miner.pulsedAt ? Math.max(0, now - miner.pulsedAt) : 5000;
-      const accepted = Math.min(ore, Math.max(0, Math.ceil(elapsed / 1000 * 200)));
+      const accepted = Math.min(ore, Math.max(0, Math.ceil(elapsed / 1000 * 500)));
       miner.pulsedAt = now;
       if (miner.refId && accepted > 0) {
         store.bonusMilli[miner.refId] = (store.bonusMilli[miner.refId] || 0) + accepted * 50;
