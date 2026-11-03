@@ -41,13 +41,40 @@ function readBody(request) {
 }
 
 function send(response, status, body, type = "application/json; charset=utf-8") {
-  response.writeHead(status, { "content-type": type, "cache-control": "no-store" });
+  response.writeHead(status, {
+    "content-type": type,
+    "cache-control": "no-store",
+    ...(response.corsHeaders || {}),
+  });
   response.end(body);
+}
+
+const API_ORIGINS = new Set([
+  "https://burrowkeep.imd.site",
+  "https://burrowkeep.identitymd.eth.limo",
+  "http://127.0.0.1:8765",
+  "http://localhost:8765",
+]);
+
+function corsHeaders(request) {
+  const origin = request.headers.origin || "";
+  if (!API_ORIGINS.has(origin)) return {};
+  return {
+    "access-control-allow-origin": origin,
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-headers": "content-type",
+    vary: "Origin",
+  };
 }
 
 const server = createServer(async (request, response) => {
   try {
     const url = new URL(request.url, "http://127.0.0.1");
+    response.corsHeaders = corsHeaders(request);
+    if (request.method === "OPTIONS" && url.pathname.startsWith("/api/")) {
+      send(response, 204, "", "text/plain; charset=utf-8");
+      return;
+    }
     if (url.pathname === "/api/hello" && request.method === "POST") {
       const body = await readBody(request);
       const minerId = String(body.minerId || "");

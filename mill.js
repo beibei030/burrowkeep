@@ -18,6 +18,9 @@ import {
   upgradeDecor,
 } from "./economy.js";
 
+const API = /(?:^|\.)imd\.site$|identitymd\.eth\.limo$/.test(location.hostname)
+  ? "https://aiqiang888.com/burrowkeep-api"
+  : "";
 const KEY = "burrowkeep-cpu-v1";
 const $ = (id) => document.getElementById(id);
 
@@ -532,14 +535,14 @@ async function syncBoard() {
   const key = `${state.minerId}:${gold}:${decor}`;
   if (key !== postedKey) {
     postedKey = key;
-    const ok = await fetch("/api/board", {
+    const ok = await fetch(`${API}/api/board`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ minerId: state.minerId, gold, decor }),
     }).then((response) => response.ok).catch(() => false);
     if (!ok) postedKey = "";
   }
-  const response = await fetch("/api/board").catch(() => null);
+  const response = await fetch(`${API}/api/board`).catch(() => null);
   if (!response || !response.ok) return;
   board = await response.json();
   renderBoards();
@@ -950,7 +953,7 @@ function draw(now) {
 }
 
 async function hello() {
-  const response = await fetch("/api/hello", {
+  const response = await fetch(`${API}/api/hello`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ minerId: state.minerId, refId: state.welcomed ? "" : state.refId }),
@@ -967,14 +970,14 @@ async function pulse() {
   if (unsentOre > 0) {
     const ore = unsentOre;
     unsentOre = 0;
-    const sent = await fetch("/api/pulse", {
+    const sent = await fetch(`${API}/api/pulse`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ minerId: state.minerId, ore }),
     }).then((response) => response.ok).catch(() => false);
     if (!sent) unsentOre += ore;
   }
-  const response = await fetch(`/api/bonus?id=${state.minerId}`).catch(() => null);
+  const response = await fetch(`${API}/api/bonus?id=${state.minerId}`).catch(() => null);
   if (!response || !response.ok) return;
   const body = await response.json();
   pendingMilli = body.pendingMilli || 0;

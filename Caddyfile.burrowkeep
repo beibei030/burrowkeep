@@ -1,0 +1,10 @@
+{
+    email admin@aiqiang888.com
+    storage file_system {
+        root C:\caddy\burrowkeep-data
+    }
+}
+
+burrowkeep-api.46.250.250.111.sslip.io {
+    reverse_proxy 127.0.0.1:8765
+}
