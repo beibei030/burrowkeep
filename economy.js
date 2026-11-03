@@ -17,8 +17,10 @@ export function threadsFor(gearLevel, cores) {
 }
 
 export function upgradeCost(kind, level) {
-  if (kind === "hamster") return 12 * 2 ** (level - 1);
-  return 18 * 2 ** (level - 1);
+  const ore = kind === "hamster" ? [100, 300, 800] : [150, 400, 1000];
+  const silver = kind === "hamster" ? [5, 15, 40, 100] : [8, 20, 50, 120];
+  if (level <= 3) return { sand: "ore", amount: ore[level - 1] };
+  return { sand: "silver", amount: silver[level - 4] };
 }
 
 export function mintOre(bankedHashes, hamsterLevel, hungry, ease = 1) {
@@ -51,9 +53,10 @@ export function feed(state) {
 export function upgrade(state, kind) {
   const level = state[kind];
   if (level >= MAX_LEVEL) return null;
-  const cost = upgradeCost(kind, level);
-  if (state.ore < cost) return null;
-  return { ...state, ore: state.ore - cost, [kind]: level + 1 };
+  const price = upgradeCost(kind, level);
+  const have = price.sand === "ore" ? state.ore : (state.silver || 0);
+  if (have < price.amount) return null;
+  return { ...state, [price.sand]: have - price.amount, [kind]: level + 1 };
 }
 
 export function friendOreMilli(ore) {

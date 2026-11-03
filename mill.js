@@ -35,15 +35,16 @@ const COPY = {
     feed: "喂食",
     feedHint: `${FOOD_COST} 矿砂，饱食 +1。挖着的时候会慢慢饿。`,
     grow: "升级仓鼠",
-    growHint: (cost, now, next) => `${cost} 矿砂。现在 ${now.toLocaleString()} 次哈希换 1 矿砂，升级后 ${next.toLocaleString()} 次。`,
+    growHint: (price, now, next) => `${price}。现在 ${now.toLocaleString()} 次哈希换 1 矿砂，升级后 ${next.toLocaleString()} 次。`,
     tighten: "加一台矿机",
-    tightenHint: (cost, threads) => `${cost} 矿砂。可同时用 ${threads} 个 CPU 线程。`,
+    tightenHint: (price, threads) => `${price}。可同时用 ${threads} 个 CPU 线程。`,
     start: "开始挖矿",
     stop: "停止挖矿",
     gentle: "温和：1 个线程",
     full: "全力：用满已解锁的线程",
     maxed: "已经满级",
     need: (n) => `还差 ${n} 矿砂`,
+    needSilver: (n) => `还差 ${n} 银砂`,
     hungry: "饿着的时候，同样的哈希只能换一半矿砂。",
     rate: (kh) => `真实算力 ${kh} kH/s · SHA-256`,
     idle: "挖矿没开。没有在做哈希运算。",
@@ -97,15 +98,16 @@ const COPY = {
     feed: "Feed",
     feedHint: `${FOOD_COST} ore, food +1. Mining makes the hamster hungry.`,
     grow: "Raise the hamster",
-    growHint: (cost, now, next) => `${cost} ore. Now ${now.toLocaleString()} hashes per ore, then ${next.toLocaleString()}.`,
+    growHint: (price, now, next) => `${price}. Now ${now.toLocaleString()} hashes per ore, then ${next.toLocaleString()}.`,
     tighten: "Add a rig",
-    tightenHint: (cost, threads) => `${cost} ore. Unlocks ${threads} CPU threads at once.`,
+    tightenHint: (price, threads) => `${price}. Unlocks ${threads} CPU threads at once.`,
     start: "Start mining",
     stop: "Stop mining",
     gentle: "Gentle: 1 thread",
     full: "Full: every unlocked thread",
     maxed: "Maxed",
     need: (n) => `Need ${n} more ore`,
+    needSilver: (n) => `Need ${n} more silver`,
     hungry: "While hungry, the same hashes make half as much ore.",
     rate: (kh) => `Real hashrate ${kh} kH/s · SHA-256`,
     idle: "Mining is off. No hashing is running.",
@@ -304,10 +306,19 @@ function hashrate(windowRows) {
   return hashes / seconds;
 }
 
-function noteFor(cost, level) {
+function priceText(price) {
+  const t = text();
+  return price.sand === "ore" ? `${price.amount} ${t.ore}` : `${price.amount} ${t.sandSilver}`;
+}
+
+function noteForPrice(price, level) {
   const t = text();
   if (level >= MAX_LEVEL) return t.maxed;
-  if (state.ore < cost) return t.need(cost - state.ore);
+  const have = price.sand === "ore" ? state.ore : (state.silver || 0);
+  if (have < price.amount) {
+    const short = price.amount - have;
+    return price.sand === "ore" ? t.need(short) : t.needSilver(short);
+  }
   return "";
 }
 
@@ -347,18 +358,20 @@ function renderShop() {
   root.replaceChildren();
   root.className = shopTab === "home" ? "shop home-shop" : "shop";
   if (shopTab === "raise") {
+    const hamsterPrice = state.hamster < MAX_LEVEL ? upgradeCost("hamster", state.hamster) : null;
+    const gearPrice = state.gear < MAX_LEVEL ? upgradeCost("gear", state.gear) : null;
     const items = [
-      { name: t.feed, hint: t.feedHint, block: noteFor(FOOD_COST, state.satiety), run: () => feed(state) },
+      { name: t.feed, hint: t.feedHint, block: noteForPrice({ sand: "ore", amount: FOOD_COST }, state.satiety), run: () => feed(state) },
       {
         name: t.grow,
-        hint: t.growHint(upgradeCost("hamster", state.hamster), hashesPerOre(state.hamster, false), hashesPerOre(Math.min(MAX_LEVEL, state.hamster + 1), false)),
-        block: noteFor(upgradeCost("hamster", state.hamster), state.hamster),
+        hint: hamsterPrice ? t.growHint(priceText(hamsterPrice), hashesPerOre(state.hamster, false), hashesPerOre(Math.min(MAX_LEVEL, state.hamster + 1), false)) : t.maxed,
+        block: hamsterPrice ? noteForPrice(hamsterPrice, state.hamster) : t.maxed,
         run: () => upgrade(state, "hamster"),
       },
       {
         name: t.tighten,
-        hint: t.tightenHint(upgradeCost("gear", state.gear), threadsFor(state.gear + 1, cores())),
-        block: noteFor(upgradeCost("gear", state.gear), state.gear),
+        hint: gearPrice ? t.tightenHint(priceText(gearPrice), threadsFor(state.gear + 1, cores())) : t.maxed,
+        block: gearPrice ? noteForPrice(gearPrice, state.gear) : t.maxed,
         run: () => upgrade(state, "gear"),
       },
       {
