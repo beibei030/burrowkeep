@@ -13,6 +13,17 @@ export function hashesPerOre(hamsterLevel, hungry, ease = 1) {
   return hungry ? scaled * 2 : scaled;
 }
 
+export function classifyWork(work) {
+  let value;
+  try { value = BigInt(work); } catch { return null; }
+  if (value < 0n) return null;
+  if (value === 0n) return "nap";
+  if (value < 500n) return "jog";
+  return "sprint";
+}
+
+export const CALL_REWARD = { nap: 30, jog: 80, sprint: 200 };
+
 export function threadsFor(gearLevel, cores) {
   return Math.max(1, Math.min(gearLevel, cores || 1, GEAR_CAP));
 }

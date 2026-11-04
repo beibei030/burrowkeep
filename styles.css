@@ -208,6 +208,7 @@ h1 { font-size: clamp(32px, 4vw, 44px); margin-bottom: 0; }
     "prov prov prov prov"
     "sands sands sands sands"
     "meters meters meters meters"
+    "call call call call"
     "tabs tabs tabs tabs"
     "shop shop shop shop"
     "invite invite invite invite"
@@ -223,6 +224,7 @@ h1 { font-size: clamp(32px, 4vw, 44px); margin-bottom: 0; }
 .choices > .run-row { grid-area: power; margin: 0; }
 .choices > .sands { grid-area: sands; }
 .choices > .meters { grid-area: meters; }
+.choices > .call { grid-area: call; }
 .choices > .tabs { grid-area: tabs; }
 .choices > .shop { grid-area: shop; }
 .choices > .invite { grid-area: invite; }
@@ -396,6 +398,7 @@ footer p { margin: 0 0 8px; }
       "prov prov"
       "sands sands"
       "meters meters"
+      "call call"
       "tabs tabs"
       "shop shop"
       "invite invite"
@@ -419,6 +422,11 @@ footer p { margin: 0 0 8px; }
 .tabs button { flex: 1; background: transparent; color: var(--ink); border: 3px solid #3a2418; }
 .tabs button.on { background: var(--ink); color: #120c16; }
 .home-shop { grid-template-columns: 1fr 1fr 1fr; }
+.call { margin-top: 8px; }
+.call p { margin: 4px 0; }
+.call-row { display: flex; gap: 8px; margin-top: 8px; }
+.call-row button { flex: 1; }
+.call-row button[aria-pressed="true"] { box-shadow: inset 0 0 0 2px #8a5a12; }
 .boards {
   display: flex;
   flex-direction: column;
