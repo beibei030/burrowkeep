@@ -3,49 +3,54 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Burrowkeep</title>
-  <meta name="description" content="Pack two things before each Squeekchain round. The confirmed settlement decides what you bring home.">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%231a120c' width='32' height='32'/%3E%3Cpath d='M16 6c2 4 2 6 0 10 4-1 7 1 7 5a7 7 0 1 1-14 0c0-4 3-6 7-5-2-4-2-6 0-10z' fill='%23f2b544'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=16">
+  <title>轮谱 · Burrowkeep</title>
+  <meta name="description" content="Confirmed Squeekchain rounds stitch a cloth and a score. The pen moves only while the hamster runs.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%236b4a36' width='32' height='32'/%3E%3Crect x='6' y='20' width='4' height='6' fill='%23e2a04a'/%3E%3Crect x='14' y='8' width='4' height='18' fill='%23f6e7a8'/%3E%3C/svg%3E">
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #16120e; color: #f3e6d0; font: 16px/1.4 "Segoe UI", "PingFang SC", sans-serif; }
+    .layout { width: min(1180px, calc(100% - 24px)); margin: 16px auto 28px; display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 18px; align-items: start; }
+    .loom { background: #120e0b; border: 4px solid #3c2e24; box-shadow: 0 0 0 4px #1a140f; padding: 12px; overflow-x: auto; min-width: 0; }
+    canvas { height: auto; image-rendering: pixelated; image-rendering: crisp-edges; display: block; }
+    aside { background: #241c16; border: 2px solid #5a4636; padding: 14px; display: grid; gap: 10px; align-content: start; min-width: 260px; }
+    .title-row { display: flex; justify-content: space-between; gap: 8px; align-items: start; }
+    .kicker { margin: 0; color: #e7b15a; letter-spacing: 0.08em; text-transform: uppercase; font-size: 11px; }
+    h1 { margin: 2px 0 0; font-size: 28px; }
+    button { font: inherit; color: #f3e6d0; background: #241c16; border: 2px solid #5a4636; padding: 8px 10px; }
+    button:active { transform: translateY(1px); }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    #live, #picked, footer { margin: 0; color: #d9c7ae; }
+    footer a { color: #f0b15a; }
+    @media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
+  </style>
 </head>
 <body>
-  <header class="top">
-    <div>
-      <p class="kicker">Squeekchain · Sepolia</p>
-      <h1>Burrowkeep</h1>
-      <p id="lede" class="lede"></p>
+  <main class="layout">
+    <div class="loom">
+      <canvas id="cloth" width="320" height="92"></canvas>
     </div>
-    <div class="top-tools">
-      <button id="lang" type="button"></button>
-    </div>
-  </header>
-  <main>
-    <section class="stage">
-      <canvas id="room" width="640" height="320"></canvas>
-    </section>
-    <section class="choices round-panel">
-      <p id="ore" class="ore">0</p>
-      <p id="ore-label" class="ore-label"></p>
-      <p id="food" class="provisional"></p>
-      <p id="live" class="provisional"></p>
-      <p id="last" class="note"></p>
-      <h2 id="carry-label"></h2>
-      <div id="carry" class="call-row"></div>
-      <p id="hungry" class="note"></p>
-      <div id="preview"></div>
-      <h2 id="gear-label"></h2>
-      <div id="gear" class="shop"></div>
-      <h2 id="log-title"></h2>
-      <div id="log"></div>
-    </section>
+    <aside>
+      <div class="title-row">
+        <div>
+          <p class="kicker">Burrowkeep</p>
+          <h1>轮谱</h1>
+        </div>
+        <button id="lang" type="button"></button>
+      </div>
+      <p id="live"></p>
+      <p id="picked"></p>
+      <div class="actions">
+        <button id="play" type="button"></button>
+        <button id="png" type="button"></button>
+        <button id="midi" type="button"></button>
+      </div>
+      <footer>
+        <p id="footer-line"></p>
+        <p><a id="stream-link" href="https://sepolia.squeekchain.com/#stream-game"></a> · <a href="https://squeekchain.com/">Squeekchain</a></p>
+      </footer>
+    </aside>
   </main>
-  <footer>
-    <p id="footer-line"></p>
-    <p class="footer-links">
-      <a href="https://sepolia.squeekchain.com/#stream-game" id="stream-link"></a>
-      <a href="https://squeekchain.com/">Squeekchain</a>
-    </p>
-  </footer>
-  <script type="module" src="round.js"></script>
+  <script type="module" src="score.js"></script>
 </body>
 </html>
