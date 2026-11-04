@@ -136,7 +136,7 @@ h1 {
 
 main {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 260px;
+  grid-template-columns: 1fr;
   gap: 16px;
   margin-top: 12px;
 }
@@ -422,7 +422,9 @@ footer p { margin: 0 0 8px; }
 .tabs button { flex: 1; background: transparent; color: var(--ink); border: 3px solid #3a2418; }
 .tabs button.on { background: var(--ink); color: #120c16; }
 .home-shop { grid-template-columns: 1fr 1fr 1fr; }
-.call { margin-top: 8px; }
+.round-panel { display: block; }
+.round-panel h2 { font-size: 22px; margin: 16px 0 8px; }
+#carry button[aria-pressed="true"] { box-shadow: inset 0 0 0 2px #8a5a12; }
 .call p { margin: 4px 0; }
 .call-row { display: flex; gap: 8px; margin-top: 8px; }
 .call-row button { flex: 1; }

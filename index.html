@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Burrowkeep</title>
-  <meta name="description" content="A mill beside Squeektoshi's wheel. His real running becomes ore. Ore buys food and mill upgrades.">
+  <meta name="description" content="Pack two things before each Squeekchain round. The confirmed settlement decides what you bring home.">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%231a120c' width='32' height='32'/%3E%3Cpath d='M16 6c2 4 2 6 0 10 4-1 7 1 7 5a7 7 0 1 1-14 0c0-4 3-6 7-5-2-4-2-6 0-10z' fill='%23f2b544'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=15">
+  <link rel="stylesheet" href="styles.css?v=16">
 </head>
 <body>
   <header class="top">
@@ -21,46 +21,29 @@
   </header>
   <main>
     <section class="stage">
-      <canvas id="room" width="720" height="460"></canvas>
-      <p id="wheel-line" class="wheel-line"></p>
+      <canvas id="room" width="640" height="320"></canvas>
     </section>
-    <section class="choices">
+    <section class="choices round-panel">
       <p id="ore" class="ore">0</p>
       <p id="ore-label" class="ore-label"></p>
-      <p id="rate" class="provisional"></p>
-      <p id="provisional" class="provisional"></p>
-      <div id="sands" class="sands"></div>
-      <div id="meters" class="meters"></div>
-      <div id="call" class="call"></div>
-      <div id="tabs" class="tabs"></div>
-      <div class="run-row">
-        <button id="power" type="button"></button>
-        <button id="mode" type="button"></button>
-      </div>
-      <div id="shop" class="shop"></div>
-      <div id="invite" class="invite"></div>
-      <p id="note" class="note"></p>
+      <p id="food" class="provisional"></p>
+      <p id="live" class="provisional"></p>
+      <p id="last" class="note"></p>
+      <h2 id="carry-label"></h2>
+      <div id="carry" class="call-row"></div>
+      <h2 id="gear-label"></h2>
+      <div id="gear" class="shop"></div>
+      <h2 id="log-title"></h2>
+      <div id="log"></div>
     </section>
-    <aside class="boards">
-      <section class="board">
-        <h2 id="wealth-title"></h2>
-        <p id="wealth-mine" class="mine"></p>
-        <ol id="wealth-list"></ol>
-      </section>
-      <section class="board">
-        <h2 id="decor-title"></h2>
-        <p id="decor-mine" class="mine"></p>
-        <ol id="decor-list"></ol>
-      </section>
-    </aside>
   </main>
   <footer>
     <p id="footer-line"></p>
     <p class="footer-links">
       <a href="https://sepolia.squeekchain.com/#stream-game" id="stream-link"></a>
-      <a href="https://squeekchain.com/genesis/i/axshwghm" id="chain-link">Squeekchain</a>
+      <a href="https://squeekchain.com/">Squeekchain</a>
     </p>
   </footer>
-  <script type="module" src="mill.js"></script>
+  <script type="module" src="round.js"></script>
 </body>
 </html>

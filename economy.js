@@ -22,23 +22,32 @@ export function classifyWork(work) {
   return "sprint";
 }
 
-export const PREP_RESULT = {
-  stock: {
-    nap: { ore: 20, satiety: 0 },
-    jog: { ore: 50, satiety: 0 },
-    sprint: { ore: 30, satiety: -1 },
-  },
-  forage: {
-    nap: { ore: 0, satiety: -1 },
-    jog: { ore: 40, satiety: 0 },
-    sprint: { ore: 160, satiety: -1 },
-  },
-  nest: {
-    nap: { ore: 15, satiety: 1 },
-    jog: { ore: 10, satiety: 1 },
-    sprint: { ore: 5, satiety: 0 },
-  },
-};
+export function resolvePack(pack, levels, outcome) {
+  const has = (id) => pack.includes(id);
+  const quilt = levels.quilt || 0;
+  const chart = levels.chart || 0;
+  const torch = levels.torch || 0;
+  let ore = 0;
+  let food = 0;
+  if (outcome === "nap") {
+    food += has("quilt") ? 1 + quilt : -1;
+    if (has("ration")) food += 1;
+    if (has("sack")) ore += 10 + quilt * 5;
+  } else if (outcome === "jog") {
+    ore += has("chart") ? 30 + chart * 25 : 12;
+    if (has("sack")) ore += 20;
+    if (has("ration")) food += 1;
+    if (!has("quilt")) food -= 1;
+  } else if (outcome === "sprint") {
+    ore += has("chart") ? 90 + chart * 40 : 24;
+    if (has("torch")) ore += 20 + torch * 30;
+    else ore = Math.floor(ore / 2);
+    if (!has("ration")) food -= 1;
+  } else {
+    return null;
+  }
+  return { ore: Math.max(0, ore), food };
+}
 
 export function threadsFor(gearLevel, cores) {
   return Math.max(1, Math.min(gearLevel, cores || 1, GEAR_CAP));
