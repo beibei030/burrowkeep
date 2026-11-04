@@ -22,13 +22,15 @@ const COPY = {
     ration: "干粮", sack: "袋子", torch: "火把", chart: "地图", quilt: "毯子",
     carry: "这一轮带上",
     full: "只能带两件",
+    depart: "出发",
+    locked: "已经出发，等这轮结算。",
     gear: "把家伙做牢一点",
     gearHint: (name, cost, level) => level >= 2 ? `${name}已经做满` : `${name}升到 ${level + 1} 级 · ${cost} 矿砂`,
     need: (n) => `还差 ${n} 矿砂`,
     logTitle: "已经过去的轮",
     emptyLog: "还没有一轮带着东西结算。",
     hungry: "饱食是 0 的时候，这一轮带回的矿砂减半。",
-    preview: (name, ore, food) => `${name}：矿砂 ${ore > 0 ? "+" : ""}${ore}，饱食 ${food > 0 ? "+" : ""}${food}`,
+    preview: (name, ore, before, after) => `${name}：矿砂 ${ore > 0 ? "+" : ""}${ore}，饱食 ${before}→${after}`,
     missed: (round) => `第 ${round} 轮已经结算，这包东西没赶上。`,
     settled: (round, name, ore, food) => `第 ${round} 轮${name}：矿砂 ${ore > 0 ? "+" : ""}${ore}，饱食 ${food > 0 ? "+" : ""}${food}`,
     footer: "Round results come from confirmed Squeekchain Sepolia settlements. The page does not run the hamster or spend a wallet.",
@@ -46,13 +48,15 @@ const COPY = {
     ration: "Ration", sack: "Sack", torch: "Torch", chart: "Chart", quilt: "Quilt",
     carry: "Carry this round",
     full: "Only two things fit",
+    depart: "Head out",
+    locked: "Already out. Waiting for this round to settle.",
     gear: "Make the gear sturdier",
     gearHint: (name, cost, level) => level >= 2 ? `${name} is finished` : `${name} to level ${level + 1} · ${cost} ore`,
     need: (n) => `Need ${n} more ore`,
     logTitle: "Rounds already settled",
     emptyLog: "No packed round has settled yet.",
     hungry: "At 0 food, ore brought home is halved.",
-    preview: (name, ore, food) => `${name}: ore ${ore > 0 ? "+" : ""}${ore}, food ${food > 0 ? "+" : ""}${food}`,
+    preview: (name, ore, before, after) => `${name}: ore ${ore > 0 ? "+" : ""}${ore}, food ${before}→${after}`,
     missed: (round) => `Round ${round} settled before this pack was home.`,
     settled: (round, name, ore, food) => `Round ${round} ${name}: ore ${ore > 0 ? "+" : ""}${ore}, food ${food > 0 ? "+" : ""}${food}`,
     footer: "Round results come from confirmed Squeekchain Sepolia settlements. The page does not run the hamster or spend a wallet.",
@@ -72,7 +76,7 @@ let angle = 0;
 
 function text() { return COPY[lang]; }
 function fresh() {
-  return { ore: 0, satiety: 3, levels: { quilt: 0, chart: 0, torch: 0 }, pack: [], callRound: "", resolvedRound: "", log: [], packNote: "" };
+  return { ore: 0, satiety: 3, levels: { quilt: 0, chart: 0, torch: 0 }, pack: [], callRound: "", resolvedRound: "", log: [], packNote: "", departed: false };
 }
 function load() {
   try {
@@ -81,7 +85,7 @@ function load() {
     parsed.pack = Array.isArray(parsed.pack) ? parsed.pack.filter((id) => CARRY.includes(id)).slice(0, 2) : [];
     parsed.levels = parsed.levels || { quilt: 0, chart: 0, torch: 0 };
     parsed.log = Array.isArray(parsed.log) ? parsed.log.slice(0, 8) : [];
-    parsed.satiety = Math.max(0, Math.min(8, parsed.satiety | 0));
+    if (parsed.callRound && parsed.pack.length) parsed.departed = true;
     return parsed;
   } catch { return fresh(); }
 }
@@ -90,7 +94,8 @@ function broughtHome(outcome) {
   const result = resolvePack(state.pack, state.levels, outcome);
   if (!result) return null;
   const ore = state.satiety <= 0 ? Math.floor(result.ore / 2) : result.ore;
-  return { ore, food: result.food };
+  const satiety = Math.max(0, Math.min(8, state.satiety + result.food));
+  return { ore, food: result.food, satiety };
 }
 function outcomeName(id) {
   const names = text();
@@ -117,7 +122,7 @@ function render() {
       const result = broughtHome(outcome);
       const line = document.createElement("p");
       line.className = "note";
-      line.textContent = t.preview(outcomeName(outcome), result.ore, result.food);
+      line.textContent = t.preview(outcomeName(outcome), result.ore, state.satiety, result.satiety);
       preview.appendChild(line);
     }
   }
@@ -130,10 +135,22 @@ function render() {
     button.type = "button";
     button.textContent = t[id];
     button.setAttribute("aria-pressed", state.pack.includes(id) ? "true" : "false");
-    button.disabled = !wheelOpen;
+    button.disabled = !wheelOpen || state.departed;
     button.addEventListener("click", () => togglePack(id));
     carry.appendChild(button);
   }
+  const depart = document.createElement("button");
+  depart.type = "button";
+  depart.id = "depart";
+  depart.textContent = state.departed ? t.locked : t.depart;
+  depart.disabled = state.departed || state.pack.length !== 2 || !wheelOpen;
+  depart.addEventListener("click", () => {
+    if (state.departed || state.pack.length !== 2 || !wheelOpen) return;
+    state = { ...state, departed: true, callRound: wheelOpen, packNote: "" };
+    save();
+    render();
+  });
+  carry.appendChild(depart);
   const gear = $("gear");
   gear.replaceChildren();
   for (const item of GEAR) {
@@ -169,16 +186,14 @@ function render() {
 }
 
 function togglePack(id) {
-  if (!wheelOpen) return;
+  if (!wheelOpen || state.departed) return;
   const t = text();
   if (state.pack.includes(id)) {
-    const pack = state.pack.filter((item) => item !== id);
-    state = { ...state, pack, callRound: pack.length ? wheelOpen : "", packNote: "" };
+    state = { ...state, pack: state.pack.filter((item) => item !== id), callRound: "", packNote: "" };
   } else if (state.pack.length >= 2) {
     state = { ...state, packNote: t.full };
   } else {
-    const pack = [...state.pack, id];
-    state = { ...state, pack, callRound: wheelOpen, packNote: "" };
+    state = { ...state, pack: [...state.pack, id], callRound: "", packNote: "" };
   }
   save();
   render();
@@ -206,13 +221,19 @@ function settle(record) {
     satiety,
     pack: [],
     callRound: "",
+    departed: false,
     resolvedRound: record.round,
     log: [line, ...state.log].slice(0, 8),
   };
   save();
 }
 
+let pulling = false;
+
 async function pullWheel() {
+  if (pulling) return;
+  pulling = true;
+  try {
   const [eventsResponse, statusResponse] = await Promise.all([
     fetch("https://api.squeekchain.com/v1/events?category=protocol&limit=20").catch(() => null),
     fetch("https://api.squeekchain.com/v1/status").catch(() => null),
@@ -246,13 +267,16 @@ async function pullWheel() {
         if (mine) settle(mine);
         else {
           const line = text().missed(state.callRound);
-          state = { ...state, pack: [], callRound: "", resolvedRound: records[0].round, log: [line, ...state.log].slice(0, 8) };
+          state = { ...state, pack: [], callRound: "", departed: false, resolvedRound: records[0].round, log: [line, ...state.log].slice(0, 8) };
           save();
         }
       }
     }
   }
   render();
+  } finally {
+    pulling = false;
+  }
 }
 
 function draw(now) {
