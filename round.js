@@ -4,9 +4,9 @@ const KEY = "burrowkeep-round-v1";
 const $ = (id) => document.getElementById(id);
 const CARRY = ["ration", "sack", "torch", "chart", "quilt"];
 const GEAR = [
-  { id: "quilt", cost: [40, 120] },
-  { id: "chart", cost: [60, 180] },
-  { id: "torch", cost: [80, 220] },
+  { id: "quilt", cost: [80, 240] },
+  { id: "chart", cost: [100, 300] },
+  { id: "torch", cost: [140, 400] },
 ];
 
 const COPY = {
@@ -27,6 +27,9 @@ const COPY = {
     need: (n) => `还差 ${n} 矿砂`,
     logTitle: "已经过去的轮",
     emptyLog: "还没有一轮带着东西结算。",
+    hungry: "饱食是 0 的时候，这一轮带回的矿砂减半。",
+    preview: (name, ore, food) => `${name}：矿砂 ${ore > 0 ? "+" : ""}${ore}，饱食 ${food > 0 ? "+" : ""}${food}`,
+    missed: (round) => `第 ${round} 轮已经结算，这包东西没赶上。`,
     settled: (round, name, ore, food) => `第 ${round} 轮${name}：矿砂 ${ore > 0 ? "+" : ""}${ore}，饱食 ${food > 0 ? "+" : ""}${food}`,
     footer: "Round results come from confirmed Squeekchain Sepolia settlements. The page does not run the hamster or spend a wallet.",
     stream: "看轮子",
@@ -48,6 +51,9 @@ const COPY = {
     need: (n) => `Need ${n} more ore`,
     logTitle: "Rounds already settled",
     emptyLog: "No packed round has settled yet.",
+    hungry: "At 0 food, ore brought home is halved.",
+    preview: (name, ore, food) => `${name}: ore ${ore > 0 ? "+" : ""}${ore}, food ${food > 0 ? "+" : ""}${food}`,
+    missed: (round) => `Round ${round} settled before this pack was home.`,
     settled: (round, name, ore, food) => `Round ${round} ${name}: ore ${ore > 0 ? "+" : ""}${ore}, food ${food > 0 ? "+" : ""}${food}`,
     footer: "Round results come from confirmed Squeekchain Sepolia settlements. The page does not run the hamster or spend a wallet.",
     stream: "Watch the wheel",
@@ -78,6 +84,12 @@ function load() {
   } catch { return fresh(); }
 }
 function save() { localStorage.setItem(KEY, JSON.stringify(state)); }
+function broughtHome(outcome) {
+  const result = resolvePack(state.pack, state.levels, outcome);
+  if (!result) return null;
+  const ore = state.satiety <= 0 ? Math.floor(result.ore / 2) : result.ore;
+  return { ore, food: result.food };
+}
 function outcomeName(id) {
   const names = text();
   return names[id] || id;
@@ -95,7 +107,18 @@ function render() {
   $("last").textContent = wheelLatest ? t.last(wheelLatest.round, outcomeName(classifyWork(wheelLatest.work)), wheelLatest.work) : "";
   $("carry-label").textContent = t.carry;
   $("gear-label").textContent = t.gear;
-  $("log-title").textContent = t.logTitle;
+  $("hungry").textContent = state.satiety <= 0 ? t.hungry : "";
+  const preview = $("preview");
+  preview.replaceChildren();
+  if (state.pack.length) {
+    for (const outcome of ["nap", "jog", "sprint"]) {
+      const result = broughtHome(outcome);
+      const line = document.createElement("p");
+      line.className = "note";
+      line.textContent = t.preview(outcomeName(outcome), result.ore, result.food);
+      preview.appendChild(line);
+    }
+  }
   $("footer-line").textContent = t.footer;
   $("stream-link").textContent = t.stream;
   const carry = $("carry");
@@ -127,6 +150,7 @@ function render() {
     gear.appendChild(button);
   }
   const log = $("log");
+  $("log-title").textContent = t.logTitle;
   log.replaceChildren();
   if (!state.log.length) {
     const empty = document.createElement("p");
@@ -162,13 +186,13 @@ function buyGear(item) {
 function settle(record) {
   if (!state.pack.length || state.callRound !== record.round || state.resolvedRound === record.round) return;
   const outcome = classifyWork(record.work);
-  const result = resolvePack(state.pack, state.levels, outcome);
-  if (!result) return;
-  const satiety = Math.max(0, Math.min(8, state.satiety + result.food));
-  const line = text().settled(record.round, outcomeName(outcome), result.ore, result.food);
+  const home = broughtHome(outcome);
+  if (!home) return;
+  const satiety = Math.max(0, Math.min(8, state.satiety + home.food));
+  const line = text().settled(record.round, outcomeName(outcome), home.ore, home.food);
   state = {
     ...state,
-    ore: state.ore + result.ore,
+    ore: state.ore + home.ore,
     satiety,
     pack: [],
     callRound: "",
@@ -209,8 +233,15 @@ async function pullWheel() {
     if (records[0]) {
       wheelLatest = records[0];
       wheelOpen = String(BigInt(records[0].round) + 1n);
-      const mine = records.find((row) => row.round === state.callRound);
-      if (mine) settle(mine);
+      if (state.callRound && BigInt(state.callRound) < BigInt(wheelOpen)) {
+        const mine = records.find((row) => row.round === state.callRound);
+        if (mine) settle(mine);
+        else {
+          const line = text().missed(state.callRound);
+          state = { ...state, pack: [], callRound: "", resolvedRound: records[0].round, log: [line, ...state.log].slice(0, 8) };
+          save();
+        }
+      }
     }
   }
   render();
