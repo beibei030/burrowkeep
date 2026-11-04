@@ -22,7 +22,23 @@ export function classifyWork(work) {
   return "sprint";
 }
 
-export const CALL_REWARD = { nap: 30, jog: 80, sprint: 200 };
+export const PREP_RESULT = {
+  stock: {
+    nap: { ore: 20, satiety: 0 },
+    jog: { ore: 50, satiety: 0 },
+    sprint: { ore: 30, satiety: -1 },
+  },
+  forage: {
+    nap: { ore: 0, satiety: -1 },
+    jog: { ore: 40, satiety: 0 },
+    sprint: { ore: 160, satiety: -1 },
+  },
+  nest: {
+    nap: { ore: 15, satiety: 1 },
+    jog: { ore: 10, satiety: 1 },
+    sprint: { ore: 5, satiety: 0 },
+  },
+};
 
 export function threadsFor(gearLevel, cores) {
   return Math.max(1, Math.min(gearLevel, cores || 1, GEAR_CAP));

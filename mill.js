@@ -6,7 +6,7 @@ import {
   SILVER_PER_GOLD,
   buyItem,
   exchange,
-  CALL_REWARD,
+  PREP_RESULT,
   classifyWork,
   feed,
   GEAR_CAP,
@@ -30,7 +30,7 @@ const $ = (id) => document.getElementById(id);
 const COPY = {
   zh: {
     lang: "English",
-    lede: "点开始之后，这个网页才用你的 CPU 做 SHA-256。矿砂只从这些哈希里换。你还可以猜 Squeekchain 上这一轮仓鼠是小睡、慢跑还是冲刺，猜中才有额外矿砂。好友挖到的矿砂他自己留着，你额外得到他入账矿砂的 5%。",
+    lede: "每一轮开始前，给家里的仓鼠选一件事：囤粮、出门或守窝。Squeekchain Sepolia 上这轮真实结算出来以后，小睡、慢跑或冲刺会决定矿砂和饱食。按下开始，还可以用 CPU 的 SHA-256 慢慢挖矿砂。",
     ore: "矿砂",
     satiety: "饱食",
     hamster: "仓鼠",
@@ -78,17 +78,20 @@ const COPY = {
     owned: "已放入家园",
     sandNeed: (name, n) => `还差 ${n} ${name}`,
     threads: (n, cores) => `本机 ${cores} 核，这级可用 ${n} 线程`,
-    callTitle: "猜这一轮",
-    callHint: "小睡 30 矿砂，慢跑 80，冲刺 200。只认 Squeekchain Sepolia 上已经确认的结算。",
+    callTitle: "这一轮让仓鼠",
+    callHint: "囤粮求稳，出门赌冲刺，守窝保饱食。结算以 Squeekchain Sepolia 已确认为准。",
+    callStock: "囤粮",
+    callForage: "出门",
+    callNest: "守窝",
     callNap: "小睡",
     callJog: "慢跑",
     callSprint: "冲刺",
-    callOpen: (round) => `正在猜第 ${round} 轮`,
+    callOpen: (round) => `第 ${round} 轮还没结算`,
+    callLive: (status, rpm) => `轮子 ${status}，${rpm} 转/分`,
     callLast: (round, name, work) => `上一轮 ${round}：${name}，做功 ${work}`,
-    callLocked: "已经押了，等这轮结算",
-    callHit: "猜中了",
-    callMiss: (name) => `这轮是${name}`,
-    callWait: "轮次还没读到",
+    callHit: (ore, food) => `结算入账 ${ore} 矿砂${food ? `，饱食 ${food > 0 ? "+" : ""}${food}` : ""}`,
+    callMiss: (name) => `这轮结算是${name}，这件事先没赶上`,
+    callWait: "正在读 Squeekchain 的轮次",
     snack: "喂零食",
     snackHint: `${SNACK_COST} 矿砂。饱食 +1，15 秒内少算 20% 哈希，60 秒后才能再喂。`,
     snackLocked: "先在商店买零食罐",
@@ -105,7 +108,7 @@ const COPY = {
   },
   en: {
     lang: "中文",
-    lede: "SHA-256 starts only after you press start. Ore comes only from those hashes. You can also call the live Squeekchain round: nap, jog, or sprint. A correct call pays extra ore. Friends keep their ore. You receive an extra 5% of the ore they book.",
+    lede: "Before each round, choose stock, forage, or stay home. A confirmed Squeekchain Sepolia settlement then decides the ore and food. Press start if you also want this tab to hash SHA-256 for ore.",
     ore: "Ore",
     satiety: "Food",
     hamster: "Hamster",
@@ -153,17 +156,20 @@ const COPY = {
     owned: "Placed",
     sandNeed: (name, n) => `Need ${n} more ${name}`,
     threads: (n, cores) => `${cores} cores on this machine, ${n} threads at this level`,
-    callTitle: "Call this round",
-    callHint: "Nap 30 ore, jog 80, sprint 200. Only confirmed Squeekchain Sepolia settlements count.",
+    callTitle: "This round",
+    callHint: "Stock is safe, forage bets on a sprint, and staying home keeps the hamster fed. Only confirmed Squeekchain Sepolia settlements count.",
+    callStock: "Stock",
+    callForage: "Forage",
+    callNest: "Stay home",
     callNap: "Nap",
     callJog: "Jog",
     callSprint: "Sprint",
-    callOpen: (round) => `Calling round ${round}`,
+    callOpen: (round) => `Round ${round} is still open`,
+    callLive: (status, rpm) => `Wheel ${status}, ${rpm} rpm`,
     callLast: (round, name, work) => `Round ${round}: ${name}, work ${work}`,
-    callLocked: "Called. Waiting for the settlement.",
-    callHit: "Correct",
-    callMiss: (name) => `It was ${name}`,
-    callWait: "The round has not loaded",
+    callHit: (ore, food) => `Settled ${ore} ore${food ? `, food ${food > 0 ? "+" : ""}${food}` : ""}`,
+    callMiss: (name) => `The round was ${name}, so this choice missed it`,
+    callWait: "Reading the Squeekchain round",
     snack: "Give a snack",
     snackHint: `${SNACK_COST} ore. Food +1, 20% fewer hashes for 15 seconds, then a 60 second wait.`,
     snackLocked: "Buy the snack tin in the shop first",
@@ -249,7 +255,7 @@ function load() {
     parsed.snackUntil = Number.isFinite(parsed.snackUntil) ? parsed.snackUntil : 0;
     parsed.snackReady = Number.isFinite(parsed.snackReady) ? parsed.snackReady : 0;
     parsed.callRound = /^\d+$/.test(parsed.callRound || "") ? parsed.callRound : "";
-    parsed.callPick = ["nap", "jog", "sprint"].includes(parsed.callPick) ? parsed.callPick : "";
+    parsed.callPick = ["stock", "forage", "nest"].includes(parsed.callPick) ? parsed.callPick : "";
     parsed.resolvedRound = /^\d+$/.test(parsed.resolvedRound || "") ? parsed.resolvedRound : "";
     parsed.version = 2;
     parsed.totalHashes = Number.isFinite(parsed.totalHashes) ? parsed.totalHashes : 0;
@@ -659,10 +665,17 @@ function render() {
 let wheelOpen = "";
 let wheelLatest = null;
 let wheelFlash = "";
+let wheelLive = "";
+let wheelRpm = 0;
 
 function outcomeName(id) {
   const t = text();
   return { nap: t.callNap, jog: t.callJog, sprint: t.callSprint }[id] || id;
+}
+
+function prepName(id) {
+  const t = text();
+  return { stock: t.callStock, forage: t.callForage, nest: t.callNest }[id] || id;
 }
 
 function renderCall() {
@@ -673,7 +686,7 @@ function renderCall() {
   title.textContent = t.callTitle;
   const hint = document.createElement("p");
   hint.className = "note";
-  hint.textContent = wheelOpen ? t.callOpen(wheelOpen) : wheelFlash || t.callWait;
+  hint.textContent = [wheelOpen ? t.callOpen(wheelOpen) : t.callWait, wheelLive, wheelFlash].filter(Boolean).join(" · ");
   const last = document.createElement("p");
   last.className = "note";
   last.textContent = wheelLatest
@@ -681,10 +694,10 @@ function renderCall() {
     : t.callHint;
   const row = document.createElement("div");
   row.className = "call-row";
-  for (const id of ["nap", "jog", "sprint"]) {
+  for (const id of ["stock", "forage", "nest"]) {
     const button = document.createElement("button");
     button.type = "button";
-    button.textContent = `${outcomeName(id)} · ${CALL_REWARD[id]}`;
+    button.textContent = prepName(id);
     button.setAttribute("aria-pressed", state.callPick === id && state.callRound === wheelOpen ? "true" : "false");
     button.disabled = !wheelOpen;
     button.addEventListener("click", () => {
@@ -698,10 +711,42 @@ function renderCall() {
   root.append(title, hint, last, row);
 }
 
+function applyPrep(outcome) {
+  const result = PREP_RESULT[state.callPick]?.[outcome];
+  if (!result) return;
+  const satiety = Math.max(0, Math.min(MAX_LEVEL, state.satiety + result.satiety));
+  state = {
+    ...state,
+    ore: state.ore + result.ore,
+    satiety,
+    resolvedRound: state.callRound,
+    callRound: "",
+    callPick: "",
+  };
+  if (result.ore > 0) pops.push({ life: 1.3, ore: result.ore });
+  wheelFlash = text().callHit(result.ore, result.satiety);
+  save();
+  paintLive();
+  renderMeters();
+}
+
 async function pullWheel() {
-  const response = await fetch("https://api.squeekchain.com/v1/events?category=protocol&limit=20").catch(() => null);
-  if (!response || !response.ok) return;
-  const body = await response.json();
+  const [eventsResponse, statusResponse] = await Promise.all([
+    fetch("https://api.squeekchain.com/v1/events?category=protocol&limit=20").catch(() => null),
+    fetch("https://api.squeekchain.com/v1/status").catch(() => null),
+  ]);
+  if (statusResponse && statusResponse.ok) {
+    const status = await statusResponse.json();
+    const rpm = Math.round((Number(status.measurement?.rpmMilli) || 0) / 1000);
+    wheelRpm = rpm;
+    const core = status.measurement?.coreStatus || "UNKNOWN";
+    wheelLive = text().callLive(core, rpm);
+  }
+  if (!eventsResponse || !eventsResponse.ok) {
+    renderCall();
+    return;
+  }
+  const body = await eventsResponse.json();
   const records = [];
   for (const event of body.events || []) {
     if (event?.type !== "system.settlement_completed") continue;
@@ -713,26 +758,23 @@ async function pullWheel() {
     if (BigInt(end) !== BigInt(prev) + 1n) continue;
     records.push({ round: String(end), work: String(work) });
   }
-  if (!records.length) return;
+  if (!records.length) {
+    renderCall();
+    return;
+  }
   records.sort((a, b) => (BigInt(a.round) > BigInt(b.round) ? -1 : 1));
   const latest = records[0];
   wheelLatest = latest;
   wheelOpen = String(BigInt(latest.round) + 1n);
-  if (state.callRound && BigInt(state.callRound) <= BigInt(latest.round) && state.resolvedRound !== state.callRound) {
+  if (state.callRound && state.callPick && state.resolvedRound !== state.callRound && BigInt(state.callRound) <= BigInt(latest.round)) {
     const settled = records.find((row) => row.round === state.callRound);
     const outcome = settled ? classifyWork(settled.work) : null;
-    if (outcome && outcome === state.callPick) {
-      const bonus = CALL_REWARD[outcome];
-      state = { ...state, ore: state.ore + bonus, resolvedRound: state.callRound, callRound: "", callPick: "" };
-      pops.push({ life: 1.3, ore: bonus });
-      wheelFlash = text().callHit;
-      save();
-    } else {
-      wheelFlash = outcome ? text().callMiss(outcomeName(outcome)) : "";
+    if (outcome) applyPrep(outcome);
+    else {
+      wheelFlash = "";
       state = { ...state, resolvedRound: state.callRound, callRound: "", callPick: "" };
       save();
     }
-    paintLive();
   }
   renderCall();
 }
@@ -937,6 +979,7 @@ function draw(now) {
     }
   }
   if (running) angle += Math.max(0.04, Math.min(0.22, shownRate / 1600000)) * (has("oil") ? 1.35 : 1);
+  else if (wheelRpm > 0) angle += Math.min(0.18, wheelRpm / 4000);
   ring(cx, cy, 24, 22, INK);
   ring(cx, cy, 22, 16, has("rim") ? GOLD : WOOD);
   ring(cx, cy, 17, 15, WOOD2);
