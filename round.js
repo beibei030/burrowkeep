@@ -66,11 +66,13 @@ let wheelOpen = "";
 let wheelLatest = null;
 let wheelLive = "";
 let wheelRpm = 0;
+let wheelCore = "";
+let wheelKm = "";
 let angle = 0;
 
 function text() { return COPY[lang]; }
 function fresh() {
-  return { ore: 0, satiety: 3, levels: { quilt: 0, chart: 0, torch: 0 }, pack: [], callRound: "", resolvedRound: "", log: [] };
+  return { ore: 0, satiety: 3, levels: { quilt: 0, chart: 0, torch: 0 }, pack: [], callRound: "", resolvedRound: "", log: [], packNote: "" };
 }
 function load() {
   try {
@@ -103,7 +105,7 @@ function render() {
   $("ore").textContent = String(state.ore);
   $("ore-label").textContent = t.ore;
   $("food").textContent = `${t.food} ${state.satiety}/8`;
-  $("live").textContent = wheelLive || t.wait;
+  $("live").textContent = [wheelLive || t.wait, state.packNote].filter(Boolean).join(" · ");
   $("last").textContent = wheelLatest ? t.last(wheelLatest.round, outcomeName(classifyWork(wheelLatest.work)), wheelLatest.work) : "";
   $("carry-label").textContent = t.carry;
   $("gear-label").textContent = t.gear;
@@ -168,8 +170,16 @@ function render() {
 
 function togglePack(id) {
   if (!wheelOpen) return;
-  const pack = state.pack.includes(id) ? state.pack.filter((item) => item !== id) : [...state.pack, id].slice(-2);
-  state = { ...state, pack, callRound: pack.length ? wheelOpen : "" };
+  const t = text();
+  if (state.pack.includes(id)) {
+    const pack = state.pack.filter((item) => item !== id);
+    state = { ...state, pack, callRound: pack.length ? wheelOpen : "", packNote: "" };
+  } else if (state.pack.length >= 2) {
+    state = { ...state, packNote: t.full };
+  } else {
+    const pack = [...state.pack, id];
+    state = { ...state, pack, callRound: wheelOpen, packNote: "" };
+  }
   save();
   render();
 }
@@ -210,11 +220,8 @@ async function pullWheel() {
   if (statusResponse?.ok) {
     const status = await statusResponse.json();
     wheelRpm = Math.round((Number(status.measurement?.rpmMilli) || 0) / 1000);
-    const round = status.builder?.anchor?.settledThroughRound;
-    const core = status.measurement?.coreStatus || "UNKNOWN";
-    const km = ((Number(status.measurement?.distanceMm) || 0) / 1e6).toFixed(1);
-    if (/^\d+$/.test(String(round || ""))) wheelOpen = String(BigInt(round) + 1n);
-    wheelLive = wheelOpen ? text().live(wheelOpen, core, wheelRpm, km) : "";
+    wheelCore = status.measurement?.coreStatus || "UNKNOWN";
+    wheelKm = ((Number(status.measurement?.distanceMm) || 0) / 1e6).toFixed(1);
   }
   if (eventsResponse?.ok) {
     const body = await eventsResponse.json();
@@ -233,6 +240,7 @@ async function pullWheel() {
     if (records[0]) {
       wheelLatest = records[0];
       wheelOpen = String(BigInt(records[0].round) + 1n);
+      wheelLive = text().live(wheelOpen, wheelCore || "UNKNOWN", wheelRpm, wheelKm || "0.0");
       if (state.callRound && BigInt(state.callRound) < BigInt(wheelOpen)) {
         const mine = records.find((row) => row.round === state.callRound);
         if (mine) settle(mine);
